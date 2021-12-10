@@ -17,7 +17,7 @@ config :pento, Pento.Repo,
 # you can enable the server option below.
 config :pento, PentoWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
-  secret_key_base: "wbG9PFfW7I0FavTlia2uAUxsjpoatOHYPNgizSW6oQrzOajuqQhOkMmwYpLE8mEg",
+  secret_key_base: "svAZn9zDj/pQJ0Mw1UDws8BxkAlEglgDZdUTN5N5T2//vXHzzlBqiszig8+7hkK4",
   server: false
 
 # In test we don't send emails.
