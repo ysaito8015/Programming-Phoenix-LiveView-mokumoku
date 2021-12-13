@@ -256,5 +256,466 @@ connection_from_request
 
 
 ## Generate The Authentication Layer
+- **phx.gen.auth** is an application generator that builds a well-structured authentication layer
+- how to use the generator to build an authentication layer
+- how the pieces of generated code fit together to handle the responsibilities of authentication
+- how LiveView uses the authentication service to identify and operate on the logged in user
 
--
+
+### Add the Dependency
+- phx_gen_auth (This repository has been archived)
+    - https://github.com/aaronrenner/phx_gen_auth
+- hexdocs.pm
+    - https://hexdocs.pm/phoenix/1.6.4/mix_phx_gen_auth.html
+
+
+### Run the Generator
+- running **mix phx.gen.auth** creates a context and a schema module
+    - a context module as an API for a service
+    - a schema module as a data structure describing a data base table
+
+
+```shell
+$ mix phx.gen.auth Accounts User users
+```
+
+- output
+
+```shell
+Compiling 16 files (.ex)
+Generated pento app
+* creating priv/repo/migrations/20211213204407_create_users_auth_tables.exs
+* creating lib/pento/accounts/user_notifier.ex
+* creating lib/pento/accounts/user.ex
+* creating lib/pento/accounts/user_token.ex
+* creating lib/pento_web/controllers/user_auth.ex
+* creating test/pento_web/controllers/user_auth_test.exs
+* creating lib/pento_web/views/user_confirmation_view.ex
+* creating lib/pento_web/templates/user_confirmation/new.html.heex
+* creating lib/pento_web/templates/user_confirmation/edit.html.heex
+* creating lib/pento_web/controllers/user_confirmation_controller.ex
+* creating test/pento_web/controllers/user_confirmation_controller_test.exs
+* creating lib/pento_web/templates/layout/_user_menu.html.heex
+* creating lib/pento_web/templates/user_registration/new.html.heex
+* creating lib/pento_web/controllers/user_registration_controller.ex
+* creating test/pento_web/controllers/user_registration_controller_test.exs
+* creating lib/pento_web/views/user_registration_view.ex
+* creating lib/pento_web/views/user_reset_password_view.ex
+* creating lib/pento_web/controllers/user_reset_password_controller.ex
+* creating test/pento_web/controllers/user_reset_password_controller_test.exs
+* creating lib/pento_web/templates/user_reset_password/edit.html.heex
+* creating lib/pento_web/templates/user_reset_password/new.html.heex
+* creating lib/pento_web/views/user_session_view.ex
+* creating lib/pento_web/controllers/user_session_controller.ex
+* creating test/pento_web/controllers/user_session_controller_test.exs
+* creating lib/pento_web/templates/user_session/new.html.heex
+* creating lib/pento_web/views/user_settings_view.ex
+* creating lib/pento_web/templates/user_settings/edit.html.heex
+* creating lib/pento_web/controllers/user_settings_controller.ex
+* creating test/pento_web/controllers/user_settings_controller_test.exs
+* creating lib/pento/accounts.ex
+* injecting lib/pento/accounts.ex
+* creating test/pento/accounts_test.exs
+* injecting test/pento/accounts_test.exs
+* creating test/support/fixtures/accounts_fixtures.ex
+* injecting test/support/fixtures/accounts_fixtures.ex
+* injecting test/support/conn_case.ex
+* injecting config/test.exs
+* injecting mix.exs
+* injecting lib/pento_web/router.ex
+* injecting lib/pento_web/router.ex - imports
+* injecting lib/pento_web/router.ex - plug
+* injecting lib/pento_web/templates/layout/root.html.heex
+
+Please re-fetch your dependencies with the following command:
+
+    $ mix deps.get
+
+Remember to update your repository by running migrations:
+
+    $ mix ecto.migrate
+
+Once you are ready, visit "/users/register"
+to create your account and then access to "/dev/mailbox" to
+see the account confirmation email.
+
+```
+
+- re-fetch the dependencies and update the repository
+
+```shell
+$ mix deps.get
+```
+
+- output
+
+
+```shell
+Resolving Hex dependencies...
+Dependency resolution completed:
+Unchanged:
+  castore 0.1.13
+  connection 1.1.0
+  cowboy 2.9.0
+  cowboy_telemetry 0.4.0
+  cowlib 2.11.0
+  db_connection 2.4.1
+  decimal 2.0.0
+  ecto 3.7.1
+  ecto_sql 3.7.1
+  esbuild 0.4.0
+  file_system 0.2.10
+  floki 0.32.0
+  gettext 0.18.2
+  html_entities 0.5.2
+  jason 1.2.2
+  mime 2.0.2
+  phoenix 1.6.2
+  phoenix_ecto 4.4.0
+  phoenix_html 3.1.0
+  phoenix_live_dashboard 0.5.3
+  phoenix_live_reload 1.3.3
+  phoenix_live_view 0.16.4
+  phoenix_pubsub 2.0.0
+  phoenix_view 1.0.0
+  plug 1.12.1
+  plug_cowboy 2.5.2
+  plug_crypto 1.2.2
+  postgrex 0.15.13
+  ranch 1.8.0
+  swoosh 1.5.2
+  telemetry 1.0.0
+  telemetry_metrics 0.6.1
+  telemetry_poller 1.0.0
+New:
+  bcrypt_elixir 2.3.0
+  comeonin 5.3.2
+  elixir_make 0.6.3
+* Getting bcrypt_elixir (Hex package)
+* Getting comeonin (Hex package)
+* Getting elixir_make (Hex package)
+```
+
+
+### Run Migrations
+- Elixir separates the concepts of working with database *records* from that of working with database *structure*
+    - the generator gave us the "database structure" code in the form of a set of Ecto migrations for creating database tables
+- [Programming Ecto](https://pragprog.com/titles/wmecto/programming-ecto/)
+
+
+```shell
+$ mix ecto.migrate
+```
+
+- output
+
+```shell
+==> comeonin
+Compiling 4 files (.ex)
+Generated comeonin app
+==> elixir_make
+Compiling 1 file (.ex)
+Generated elixir_make app
+==> bcrypt_elixir
+mkdir -p /home/ysaito/projects/elixir-mokumoku/Programming-Phoenix-LiveView-mokumoku/ch02/pento/_build/dev/lib/bcrypt_elixir/priv
+cc -g -O3 -Wall -Wno-format-truncation -I"/home/ysaito/erlang/24.1.6/erts-12.1.5/include" -Ic_src -fPIC -shared  c_src/bcrypt_nif.c c_src/blo
+wfish.c -o /home/ysaito/projects/elixir-mokumoku/Programming-Phoenix-LiveView-mokumoku/ch02/pento/_build/dev/lib/bcrypt_elixir/priv/bcrypt_ni
+f.so
+Compiling 3 files (.ex)
+Generated bcrypt_elixir app
+==> pento
+Compiling 31 files (.ex)
+Generated pento app
+
+22:04:23.725 [info]  == Running 20211213204407 Pento.Repo.Migrations.CreateUsersAuthTables.change/0 forward
+
+22:04:23.728 [info]  execute "CREATE EXTENSION IF NOT EXISTS citext"
+
+22:04:23.751 [info]  create table users
+
+22:04:23.757 [info]  create index users_email_index
+
+22:04:23.758 [info]  create table users_tokens
+
+22:04:23.764 [info]  create index users_tokens_user_id_index
+
+22:04:23.765 [info]  create index users_tokens_context_token_index
+
+22:04:23.767 [info]  == Migrated 20211213204407 in 0.0s
+```
+
+
+### Test the Service
+
+```shell
+$ mix test
+```
+
+
+- output
+
+
+```shell
+Compiling 35 files (.ex)
+Generated pento app
+.........................................................................................................
+
+Finished in 0.4 seconds (0.3s async, 0.1s sync)
+105 tests, 0 failures
+
+Randomized with seed 353227
+```
+
+
+## Explore Accounts from IEx
+- exploration
+    - reading code
+    - looking at the public functions in IEx
+        - **export** function
+- look at the various things that it can *do*
+- **Account** context
+    - is the layer that we will use to create, read, update, and delete users in the database
+    - provides an API through which all of these databaes transactions occur
+    - looks up user
+    - a *token* in the database to keep the application secure
+    - to securely update users email or password
+
+
+### View Public Functions
+
+```shell
+$ iex -S mix
+```
+
+- use **exports Accounts**
+
+```elixir
+iex(1)> alias Pento.Accounts
+Pento.Accounts
+
+iex(2)> exports Accounts
+apply_user_email/3                 change_user_email/1                change_user_email/2                
+change_user_password/1             change_user_password/2             change_user_registration/1         
+change_user_registration/2         confirm_user/1                     delete_session_token/1             
+deliver_update_email_instructions/3deliver_user_confirmation_instructions/2deliver_user_reset_password_instructions/2
+generate_user_session_token/1      get_user!/1                        get_user_by_email/1                
+get_user_by_email_and_password/2   get_user_by_reset_password_token/1 get_user_by_session_token/1        
+register_user/1                    reset_user_password/2              update_user_email/2                
+update_user_password/3             
+```
+
+
+- functions work with new users
+    - **register_user/1**
+    - **confirm_user/1**
+- functions for managing the user's session
+    - **delete_session_token/1**
+    - **generate_user_session_token/1**
+- functions for looking up users
+    - **get_user!/1**
+    - **get_user_by_email/1**
+    - **get_user_by_email_and_password/2**
+    - **get_user_by_reset_password_token/1**
+    - **get_user_by_session_token/1**
+- functions for changing users
+    - **reset_user_password/2**
+    - **update_user_password/3**
+    - **update_user_email/2**
+
+
+### Create a Valid User
+- create a user
+
+
+```elixir
+iex(3)> params = %{email: "mercutio@grox.io", password: "R0sesBy0therNames"}
+%{email: "mercutio@grox.io", password: "R0sesBy0therNames"}
+
+iex(4)> Accounts.register_user(params)
+[debug] QUERY OK source="users" db=0.8ms decode=0.6ms queue=1.2ms idle=276.3ms
+SELECT TRUE FROM "users" AS u0 WHERE (u0."email" = $1) LIMIT 1 ["mercutio@grox.io"]
+[debug] QUERY OK db=2.2ms queue=0.8ms idle=501.8ms
+INSERT INTO "users" ("email","hashed_password","inserted_at","updated_at") VALUES ($1,$2,$3,$4) RETURNING "id" ["mercutio@grox.io", "$2b$12$X
+2cQ4Z9KnDQZ7/YaybCHOuzR1yQ96FbjrU5/QIt6ulOlfQk5b.ZIG", ~N[2021-12-13 21:50:55], ~N[2021-12-13 21:50:55]]
+{:ok,
+ #Pento.Accounts.User<
+   __meta__: #Ecto.Schema.Metadata<:loaded, "users">,
+   confirmed_at: nil,
+   email: "mercutio@grox.io",
+   id: 1,
+   inserted_at: ~N[2021-12-13 21:50:55],
+   updated_at: ~N[2021-12-13 21:50:55],
+   ...
+ >}
+```
+
+
+- the **Account** context created a changeset, and seeing valid data, it inserted an account record into the database
+    - the result is an **{:ok, user}** tuple
+
+
+### Try to Create an Invalid User
+
+
+```elixir
+iex(5)> Accounts.register_user(%{})
+{:error,
+ #Ecto.Changeset<
+   action: :insert,
+   changes: %{},
+   errors: [
+     password: {"can't be blank", [validation: :required]},
+     email: {"can't be blank", [validation: :required]}
+   ],
+   data: #Pento.Accounts.User<>,
+   valid?: false
+ >}
+```
+
+- the result is **{:error, changeset}**
+- invalid changesets say why they are invalid with a list of **errors**
+
+
+## Protect Routes with Plugs
+- ./lib/pento_web/controllers/user_auth.ex
+    - the authentication service is defined
+
+
+```shell
+$ iex -S mix
+```
+
+- output
+
+```elixir
+iex(6)> exports PentoWeb.UserAuth
+fetch_current_user/2               log_in_user/2                      log_in_user/3                      
+log_out_user/1                     redirect_if_user_is_authenticated/2require_authenticated_user/2       
+```
+
+- all of these functions are plugs
+
+
+### Fetch the Current User
+- plugs are *reducers* that
+    - take a **Plug.Conn** as the first argument and
+    - return a transformed **Plug.Conn**
+- **assigns** map that we *can* use to store custom application data
+
+
+- ./lib/pent_web/router.ex
+
+
+```elixir
+  import PentoWeb.UserAuth
+
+  pipeline :browser do
+    plug :accepts, ["html"]
+    plug :fetch_session
+    plug :fetch_live_flash
+    plug :put_root_layout, {PentoWeb.LayoutView, :root}
+    plug :protect_from_forgery
+    plug :put_secure_browser_headers
+    plug :fetch_current_user
+  end
+```
+
+
+- any code that hondles routes tied to the **browser** pipeline will have access to the **current_user** in **conn.assigns.current_user**
+
+
+- ./lib/pento_web/templates/layout/_user_menu.html.heex
+    - this layout's user menu uses the **current_user**
+        - stored in the connection's **assigns** and
+        - accessed in the template via **@current_user**
+
+
+```html
+<ul>
+<%= if @current_user do %>
+  <li><%= @current_user.email %></li>
+  <li><%= link "Settings", to: Routes.user_settings_path(@conn, :edit) %></li>
+  <li><%= link "Log out", to: Routes.user_session_path(@conn, :delete), method: :delete %></li>
+<% else %>
+  <li><%= link "Register", to: Routes.user_registration_path(@conn, :new) %></li>
+  <li><%= link "Log in", to: Routes.user_session_path(@conn, :new) %></li>
+<% end %>
+</ul>
+```
+
+
+### Authenticate a User
+- Phoenix works by chaining together plugs that manipulate a session
+- **UserAuth.log_in_user** function also sets up a unique identifier for the LiveView sessions
+
+```elixir
+iex(1)> h PentoWeb.UserAuth.log_in_user
+
+                   def log_in_user(conn, user, params \\ %{})                   
+
+Logs the user in.
+
+It renews the session ID and clears the whole session to avoid fixation
+attacks. See the renew_session function to customize this behaviour.
+
+It also sets a :live_socket_id key in the session, so LiveView sessions are
+identified and automatically disconnected on log out. The line can be safely
+removed if you are not using LiveView.
+
+```
+
+
+- ./lib/pento_web/controllers/user_session_controller.ex
+    - **UserAuth.log_in_user** function is used in this file
+    - pluck the email and password from the inbound params sent by the login form
+    - use the context to check to see whether the user exists and
+    - has provided a valid password
+        - if not, we render the login page again with an error
+
+
+```elixir
+  def create(conn, %{"user" => user_params}) do
+    %{"email" => email, "password" => password} = user_params
+
+    if user = Accounts.get_user_by_email_and_password(email, password) do
+      UserAuth.log_in_user(conn, user, user_params)
+    else
+      # In order to prevent user enumeration attacks, don't disclose whether the email is registered.
+      render(conn, "new.html", error_message: "Invalid email or password")
+    end
+  end
+```
+
+
+- ./lib/pento_web/controllers/user_auth.ex
+    - build a token and grab the redirect path from the session, then
+    - renew the **session** for security's sake,
+        - adding both the token and a unique identifier to the session
+    - create a **remember_me** cookie if the user has selected that option
+    - redirect the user
+
+
+```elixir
+  def log_in_user(conn, user, params \\ %{}) do
+    token = Accounts.generate_user_session_token(user)
+    user_return_to = get_session(conn, :user_return_to)
+
+    conn
+    |> renew_session()
+    |> put_session(:user_token, token)
+    |> put_session(:live_socket_id, "users_sessions:#{Base.url_encode64(token)}")
+    |> maybe_write_remember_me_cookie(token, params)
+    |> redirect(to: user_return_to || signed_in_path(conn))
+  end
+```
+
+
+## Authenticate The Live View
+- how to protect authenticated LiveView routes and
+- how to identify the authenticated user in a live view
+1. put the live route behind authentication
+2. update the **mount/3** function to use the token from the session to find the logged un user
+
+
+### Protect Sensitive Routes
+- 
