@@ -718,4 +718,106 @@ removed if you are not using LiveView.
 
 
 ### Protect Sensitive Routes
-- 
+- **browser** pipeline
+    - establishes the policy for web requests from browsers
+- **UserAuth.require_authenticated_user/2** function plug
+    - ensures that a current user is present, or else redirects to the sign in page
+    - in order to authenticate the **wrong_live** view, we'll move the live view route into this pipeline
+
+
+```elixir
+74  scope "/", PentoWeb do
+75    pipe_through [:browser, :redirect_if_user_is_authenticated]
+76
+77    live "/guess", WrongLive
+```
+
+
+### Test Drive the LiveView
+
+
+### Access Session Data
+- our session has both a token and a live view socket id
+    - the session is made available to the live view as the second argument given to the **mount/3**
+
+
+- `./lib/pento_web/live/wrong_live.ex`
+    - get user from session parameter
+        - accessible by **@user**
+    - set the **:session_id** key
+        - accessible by **@session_id**
+    - remove `_` on second parameter of mount/3
+
+
+```elixir
+  def mount(_params, session, socket) do
+    {
+      :ok,
+      assign(
+        socket,
+        score: 0,
+        message: "Guess a number.",
+        user: Pento.Accounts.get_user_by_session_token(session["user_token"]),
+        session_id: session["live_socket_id"]
+      )
+    }
+  end
+```
+
+```shell
+[debug] QUERY OK source="users_tokens" db=1.7ms idle=1953.3ms
+SELECT u1."id", u1."email", u1."hashed_password", u1."confirmed_at", u1."inserted_at", u1."updated_at"
+FROM "users_tokens" AS u0
+INNER JOIN "users" AS u1 ON u1."id" = u0."user_id"
+WHERE
+  ((u0."token" = $1) AND (u0."context" = $2)) AND
+  (u0."inserted_at" > $3::timestamp + (-(60)::nume ric * interval '1 day'))
+  [
+    <<139, 40, 71, 237, 52, 36, 8, 248, 196, 246, 121, 128, 248, 181, 97, 210, 99, 45, 89, 191, 100, 190, 86, 185, 192, 123, 80, 45, 112, 222, 30, 72>>,
+    "session", ~U[2022-01-01 20:28:10.075403Z]
+  ]
+```
+
+
+- `./lib/pento_web/live/wrong_live.ex`
+
+
+```elixir
+  def render(assigns) do
+    ~L"""
+    <h1>Your score: <%= @score %></h1>
+    <h2>
+      <%= @message %>
+    </h2>
+    <h2>
+      <%= for n <- 1..10 do %>
+        <a href="#" phx-click="guess" phx-value-number="<%= n %>"><%= n %></a>
+      <% end %>
+    </h2>
+    <pre>
+      <%= @user.email %>
+      <%= @session_id %>
+    </pre>
+    """
+  end
+```
+
+```
+  ysaito8015@gmail.com
+  users_sessions:iyhH7TQkCPjE9nmA-LVh0mMtWb9kvla5wHtQLXDeHkg=
+```
+
+
+## Your Turn
+- the OWASP standards
+    - Open Web Application Security Project
+- context
+    - for long term persistence of users, passwords, and session tokens
+- a short-term solution
+    - for adding authenticated tokens representing users to a session
+- each of pipelines applies some transformation to a common connection struct
+    - the same pattern individual live views will use to respond
+
+### Give It a Try
+
+### Next Time
