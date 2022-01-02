@@ -656,3 +656,146 @@ end)
 
 
 ## Boundary, Core, or Script?
+- Functions that deals with process machnery or uncertainty
+    - will go in the *boundary*, or context.
+- Functions that have certainty and support the boundary
+    - go in the *core*.
+
+
+### The Context API is With-land
+- the context module is the API for a service.
+- the context module acts as the application's boundary layer.
+- Boundary layers handle uncertainty.
+    - use **with** statements to manage code flow that contains uncertainty.
+- The **with/1** function allows us to compose a series of function calls
+
+
+#### An Appropriate usage of THe Pipe Operator
+
+```elixir
+defmodule Catalog.Product.Query do
+#...
+  def base_product_query, do: Product
+
+  def cheaper_than(query, price), do: from p in query, where #...
+
+  def chap_product_skus(price)
+    base_product_query()
+    |> cheaper_than(price)
+    |> skus
+  end
+end
+```
+
+- they build queries or transform them.
+- If we've verified the **price** is correct, this code should not fail.
+- the behavior of this code is certain.
+- Pipes work great under certain condition.
+
+
+#### Under the uncertain conditions
+
+
+```elixir
+# this is a bad idea!
+defmodule Pento.Catalog do
+  alias Catalog.Product.Query
+  alias Pento.Repo
+
+  def run_query(query) do
+    {:ok, list} = Repo.all(query)
+    list
+  end
+
+  def send_sale_skus(query) do
+    query
+    |> Product.cheap_product_skus(25.00)
+    |> run_query
+    |> Service.send_bargains
+  end
+end
+```
+
+
+- it only matters that
+    - you must invoke the **Service.send_gargains/1** function with an argument of the product list returned from **run_query/1**.
+- But the **run_query/1** function can fail!
+- **send_sale_sku/1** won't work reliably.
+- the pipeline we built can handle the **:ok** case, but not the **:error** case.
+
+- compose such statements with **with/1** function.
+
+
+```elixir
+defmodule Pento.Catalog do
+  alias Catalog.Product.Query
+  alias Pento.Repo
+
+  def run_query(query) do
+    Repo.all(query)
+  end
+
+  def get_sale_skus(query) do
+    query
+    |> Product.cheap_product_skus(25.00)
+    |> run_query
+  end
+
+  def send_sale_skus(query) do
+    with {:ok, products} <- get_sale_skus(query),
+         {:ok, response} <- Service.send_bargains(products) do
+      response
+    else
+      {:error, reason} ->
+        IO.puts "Error sending sale skus: %{reason}"
+    end
+  end
+end
+```
+
+- the code with uncertainty *needs to be* more verbose, because it *must* deal with failure.
+- **with** code properly belongs in the application's boundary layer, the context.
+- Use **with** in boundary code
+- Use the pipe operator in core code
+- seek to move as much code as possible *from the boundary to the core*!
+
+
+### The Core is Pipe-land
+- the core code is *predictable* and *reliable* enough that we can compose our functions together with pipes.
+- Though executing queries might fail, building queries is completely predictable.
+- Build a query in the *core* and execute it in the *boundary*.
+- Shemas are road maps that describe how to tie one *Elixir module* to a *database table*.
+    - it just has the data that answers key questions about how to do so.
+- Working with data that comes from the database is *prodictable and certain*, so
+    - code that constructs or validates database transactions can go in the core.
+
+
+### Operations Code
+- Elixir places the operations code in scripts.
+    - the code to support common development, deployment, or testing tasks.
+- Migrations, other **mix** tasks, and code to add data to your database fit this model.
+- Put such code in **./priv**.
+- If it deals with the database, the code will reside in **./priv/repo**.
+- Mix configuration will go in **mix.exs**.
+- Configuration of the main environments goes in **./config**.
+- **.exs** scripts simply go where they are most convenient.
+
+
+## Your Turn
+- The Phoenix Live generator has a layering syste, and the backend layers include core and boundary code.
+- the core layer
+    - the schema
+        - contains information to define a struct that ties Elicir data to fields in a database.
+        - Each struct represents a row of the database.
+    - changesets
+        - implement change policies for those rows.
+- the boundary layer
+    - Phoenix Contexts
+        - with important responsibilities for protecting the core.
+        - Each context presents a common API for some problem domain.
+        - Contexts wrap services and handle unverified user input.
+
+
+### Give It a Try
+
+### Next Time
