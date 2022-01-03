@@ -392,7 +392,65 @@
 - The Product Edit page will have three distinct layers.
     - the *background*
         - Live view: index.heml.heex
+        - is implemented with the base **index** template and **index** live view
+        - is responsible for rendering the products table in the background
     - the modal dialog
         - Modal dialog funciton: LiveHelpers.live_modal
+        - to provide a window container
+        - prevents interaction with the layers underneath and 
+        - contains the form component
+        - is comprised of HTML markup with supporting CSS, and a small modal *component*.
+        - **Components** are like little live views that run in the process of their parent live view.
     - the form component 
         - Component: FormComponent
+        - holds data in its own sockets,
+        - renders itself, and
+        - processes messages that potentially change its state.
+
+
+### Call the Modal Component
+- The code flow is kicked off in the very same Product Index template.
+- three concepts
+    - the conditional statement
+        - predicated on the value of the **@live_action** assignment.
+        - the change management workflow
+            - when a user clicks the "edit" link
+                - the **ProductLive.Index** live view will invoke the **handle_params/3** callback with a **live_action** of **:edit** populated in the socket assigns.
+            - the template will then re-render with this **@live_action** assignment set to **:edit**
+            - the template *will* call the **live_modal/3*8 funciton.
+    - **live_modal/3** function
+        - waps up two concepts.
+            1. a CSS concept
+                - a *modal dialog*
+                    - the generated CSS applied to the modal component will disallow interaction with the window underneath.
+            2. the component itself
+                - This component handles details for a modal window, including an event to close the window.
+- The Phoenix Live generator
+    - builds the **live_modal/3** function and
+    - places it in the **./lib/pento_web/live/live_helpers.ex** file
+    - its sole responsibility is to build a modal window in a **div**
+- **PentoWeb.ModalComponent**
+    - to apply some markup and styling that
+        - presents a window in the foreground, and 
+        - handles the events to close that window
+
+
+- `./lib/pento_web/lib/libe_helpers.ex`
+
+
+```elixir
+25  def live_modal(socket, component, opts) do
+26    path = Keyword.fetch!(opts, :return_to)
+27    modal_opts = [
+28      id: :modal,
+29      return_to: path,
+30      component: component,
+31      opts: opts
+32    ]
+33    live_component(socket, PentoWeb.ModalComponent, modal_opts)
+34  end
+```
+
+
+### Render The Modal Component
+-
