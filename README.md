@@ -16,7 +16,7 @@
         - doesn't use LiveView
         - to learn how Phoenix requests work
         - use the generated code to authenticate a live view
-3. Generators: OCntexts and Schemas
+3. Generators: Contexts and Schemas
     - `phx.gen.live`
         - creates live views with all of the code
         - to generate the product CRUD feature-set
