@@ -528,3 +528,348 @@ end
 - the default **update/2** function takes the assigns
 - this generated modal component doesn't need to keep any extra data in the socket
     - aside from the assings we pass in via the call to **live_component/3**
+    - we can allow it to pick up the default **mount/1** and **update/2** functions from the behaviour.
+
+<img src="https://i.gyazo.com/8fb555b3bbe65b57a3ab37aec69ca9be.png" width="600">
+
+1. The **live_modal** function in the **ProductLive.Index** template calls a **LiveHelpers.live_component/3** function
+2. The **LiveHelpers.live_component/3** function calls on the **ModalComponent**
+3. The **ModalComponent.live_component/3** renders a template that presents a pop-up to the user
+
+
+### Handle Model Component Events
+- types of components
+    1. statefull
+    2. stateless
+- only components that can implement a **handle_event/3** function can actually handle events
+- only _stateful_ components can implement **handle_event/3**
+    - Adding an **id** to a component make it stateful
+
+
+#### :id key in the live_helpers.ex
+
+```elixir
+  def live_modal(socket, component, opts) do
+    path = Keyword.fetch!(opts, :return_to)
+    modal_opts = [
+      id: :modal,
+      return_to: path,
+      component: component,
+      opts: opts
+    ]
+    live_component(socket, PentoWeb.ModalComponent, modal_opts)
+  end
+```
+
+
+#### How it is taught to handle events
+- three ingredients to event management in LiveView
+    1. Add a LiveView DOM Element binding, or LiveView binding
+        - to given HTML element
+        - bindings that send events over the WebSocket to the live view when a specified client interaction
+    2. Specify a target for that LiveView event
+        - by adding a **phx-target** attribute to the DOM element
+    3. implement a **handle_event/3** callback
+        - that matches the name of the event in the targeted live view or component
+
+#### a handle_event/3 function for the "close" event
+
+
+```elixir
+  @impl true
+  def handle_event("close", _, socket) do
+    {:noreply, push_patch(socket, to: socket.assigns.return_to)}
+  end
+```
+
+- this generated event handler takes in arguments of the event name, ignored metadata, and the socket.
+- it _transforms_ the socket by navigating back to the path we specified in **live_modal/3** with a call to **push_path/2**.
+
+
+### Live Navigation with **push_path/2**
+- The **push_patch/2** function works just like the **live_patch/2** function with one exception.
+    - use **live_patch/2** in HTML markup running in the browser client.
+    - use **push_patch/2** in event handlers running on the server.
+- The **push_patch/2**
+    - adds private data to the socket that LiveView's server-side code and
+    - JavaScript will use to navigate between pages and manage the URL _all within the current LiveView_.
+- On the server side,
+    - the dame change management lifecycle will kick off.
+    - LiveView will call **handle_params/3**, but not **mount/3**
+
+
+<img src="https://i.gyazo.com/fb5427d5969746eb1e3e2034f43a4ff2.png" width="600">
+
+
+1. click the "close" button, the browser navigates back to **/products**.
+2. **/products** route will point us at **ProductLive.Index** with a **live_action** of **:index**.
+3. **ProductLive.Index** change in state will cause another render of the index template.
+4. This time around, the template code's **if** condition that checks for the **:edit** live action will evaluate to **false**
+
+
+## LiveView Layers: The Form Component
+- The content we put _inside_ our modal window may have its own state, markup, and events
+- the form component
+    - be able to compose components into layers
+    - allows us to collect the fields for a product a user wants to create or update.
+    - will also have events related to submitting and validating the form.
+    - in three steps
+        1. rendering the template,
+        2. setting up the socket, and
+        3. processing events
+
+
+### Render the Form Component
+- tracing how the form component is rendered from within the modal component.
+
+- ./lib/pento_web/live/product_live/index.html.leex
+
+```elixir
+<%= if @live_action in [:new, :edit] do %>
+  <%= live_modal @socket, PentoWeb.ProductLive.FormComponent,
+    id: @product.id || :new,
+    title: @page_title,
+    action: @live_action,
+    product: @product,
+    return_to: Routes.product_index_path(@socket, :index)%>
+<% end %>
+```
+
+- there is an **:id** key, along with a **:component** key that specifies the **FormComponent**
+    - that will be rendered inside the modal
+- These attributes are passed into the modal component via **PentoWeb.LiveHelpers.live_modal/3**'s call to **live_component/3**.
+
+- ./lib/pento_web/live/live_helpers.ex
+
+
+```elixir
+  def live_modal(socket, component, opts) do
+    path = Keyword.fetch!(opts, :return_to)
+    modal_opts = [
+      id: :modal,
+      return_to: path,
+      component: component,
+      opts: opts
+    ]
+    live_component(socket, PentoWeb.ModalComponent, modal_opts)
+  end
+```
+
+- modal_opts
+    - the keyword list of options is made available to the modal component's **render/1** function as part of the assigns.
+    - the modal component's template has access to a **@component** assignment set equal to the name of the form component module.
+-
+
+
+#### calling live_component/3
+- `<%= live_component @socket, @component, @opts %>`
+- in the modal component's markup
+- this will mount and render the **FormComponent** and provide the additional options present in the **@opts** assignment.
+    - the **@opts** assignment includes a key of **:id**
+        - so the form component _is_ stateful.
+- passed keys with a product, a title, the live action, and a path to **live_modal/3** function in the Product Index template
+    - All those options, alog with our **:id**, are in **@opts**
+        - can refer to them in the form component as part of the component's assigns
+
+
+- ./lib/pento_web/live/product_live/index.html.leex
+
+```elixir
+<%= if @live_action in [:new, :edit] do %>
+  <%= live_modal @socket, PentoWeb.ProductLive.FormComponent,
+    id: @product.id || :new,
+    title: @page_title,
+    action: @live_action,
+    product: @product,
+    return_to: Routes.product_index_path(@socket, :index)%>
+<% end %>
+```
+
+
+### Establish From Component State
+- what happens _when_ it is rendered.
+1. The first time Phoenix renders the form component, it will call **mount/1** once.
+    - this is where we can perform any initial set-up for our form component's state.
+2. the **update/2** callback will be used to keep the component up-to-date
+    - whenever the parent live view or the component itself changes.
+    - The default **mount/1** function from the call to **use PentoWeb, :live_component** will suffice.
+- The **update/2** function takes in two arguments, the map of assigns and the socket
+    - both of wich we provided when we called **live_component/3**
+- `<%= live_component @socket, @component, @opts %>`
+    - a refresher of the **update/2** function calling **live_component/3** in the LEEX template
+    - these three options are passed into the specified component's **update/2** callback as the **assigns** argument, and
+        - the socket is passed in as the second argument.
+        1. **@socket**:
+            - The socket shared by the parent live view, in this case **ProductLive.Index**
+        2. **@component**:
+            - the name of the component to be rendered and
+        3. **@opts**:
+            - the keyword list of options.
+
+
+#### update/2 function
+- ./lib/pento_web/live/product_live/form_component.ex
+
+
+```elixir
+  @impl true
+  def update(%{product: product} = assigns, socket) do
+    changeset = Catalog.change_product(product)
+
+    {:ok,
+     socket
+     |> assign(assigns)
+     |> assign(:changeset, changeset)}
+  end
+```
+
+- how this **update/2** function uses the data in **assigns** to support the "product eidt form"
+- _form_ links _changeset_
+- The generated code uses the **Catalog.chnage_product/1** function to build a chnageset for the product that is stored in assigns.
+- use handlers to wait for events,
+    - and then change the assigns in the socket in response to those events.
+
+
+### Handle Form Component Events
+- how the form component receives and handles events
+- the form component remplate and see how it sends events to the LiveView component.
+
+
+#### Send Form Component Events
+- The form template is really just a standard Phoenix form.
+- The main function in the template is the **form_for** function.
+- use the chnageset that was put in assigns via the **update/2** callback
+
+
+- ./lib/pento_web/live/product_live/form_component.html.leex
+
+
+```elixir
+<%= f = form_for @changeset, "#",
+  id: "product-form",
+  phx_target: @myself,
+  phx_change: "validate",
+  phx_submit: "save" %>
+
+  <%= label f, :name %>
+  <%= text_input f, :name %>
+  <%= error_tag f, :name %>
+
+  <%= label f, :description %>
+  <%= text_input f, :description %>
+  <%= error_tag f, :description %>
+
+  <%= label f, :unit_price %>
+  <%= number_input f, :unit_price, step: "any" %>
+  <%= error_tag f, :unit_price %>
+
+  <%= label f, :sku %>
+  <%= number_input f, :sku %>
+  <%= error_tag f, :sku %>
+
+  <%= submit "Save", phx_disable_with: "Saving..." %>
+</form>
+```
+
+- **form_for** function with no target URL, and **id**, and three **phx-** attributes.
+- **phx-** attributes
+    - _**phx-change**_
+        - Send the **"validate"** event to the live component each time the form changes
+    - _**phx-submit**_
+        - Send the **"save"** event to the live component when the user submits the form
+    - _**phx-target**_
+        - Specify a component to receive these events.
+- a series of form fields, and a submit button
+    - these tie back to the **@chnageset** through the form variable, **f**.
+- They will do two things.
+    - Upon rendering,
+        - they establish the value for each field.
+    - Upon submit,
+        - they send their values to the live view.
+- the error tags
+    - these will come into play when a field is not valid based on the errors in the changeset.
+
+
+#### Receive Form Component Evnets
+- The **phx-change** event fires whenever the form chnages.
+- The **phx-submit** event fires when the user submits the form.
+
+
+##### "save" event
+
+```elixir
+  def handle_event("save", %{"product" => product_params}, socket) do
+    save_product(socket, socket.assigns.action, product_params)
+  end
+```
+
+1. The first argument is the event name.
+2. For the first time, we use the metadata sent along with the event, and we use it to pick off the form contents.
+3. The last argument to the event handler is the **socket**.
+- When the user presses **submit**,
+    - the form component calls **save_product/3**
+    - which attempts either a product update or product create with the help of the **Catalog** context.
+- If the attempt is successful,
+    - the component updates the flash messages and redirects to the Product Index view.
+
+
+#### Live Navigation with **push_redirect/2**
+- The **push_redirect/2** function, and its client-slide counterpart **live_redirect/2**,
+    - transform the socket.
+- When the client receives this socket data,
+    - it will redirect to a live view, and
+    - will always trigger the **mount/3** function.
+- It's also the only mechanism you can use to redirect to a _different_ LiveView than the current one.
+
+
+##### push_redirect/2 calling at the form component
+
+```elixir
+socket
+|> push_redirect(to: socket.assigns.return_to)}
+```
+
+- calling **live_modal/3** from the Index template
+    - it was invoked with a set of options including a **:return_to** key set to a value of **/products**
+- that option was passed through the modal component,
+    - into the form compnent as part of the form component's socket assigns.
+- We want to ensure that **mount/3** re-runs now so that it can reload the product list from the database
+
+
+## Your Turn
+- the major pieces of the LiveView framework
+    - the route,
+    - the live view module,
+    - the optional view template, and
+    - the helpers, component modules and component templates that support the parent view.
+- The entry point of the LiveView lifecycle is the route.
+    - The route matches a URL onto a LiveView module and sets a live action.
+- The live view
+    - puts data in the socket using **mount/3** and **handle_params/3**, and then
+    - renders that data in a template with the same name as the live view.
+- The mount/render and chnage management workflows
+    - make it easy to reason about state management and
+    - help you find a home for _all_ of your CRUD code across just _two_ live view.
+- A **LiveComponent**
+    - compartmentalizes state, HTML markup, and event processing for a small part of a live view.
+    - The generators built two different components,
+        - one to handle a modal window and
+        - one to process a form
+
+
+### Give It a Try
+- three problems
+    1. Trace through the **ProductLive.Show** live view
+    2. Change the Index Live View
+    3. Generate Your Own LiveView
+
+
+#### Trace Through a Live View
+- the **Index** page's implementation of the link to the product show page
+
+
+#### Change the Index Live View
+- the **index.html.leex** live view
+
+
+#### Generate You Own LiveView
