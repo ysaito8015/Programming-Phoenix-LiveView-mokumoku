@@ -453,4 +453,78 @@
 
 
 ### Render The Modal Component
--
+- A _component_ is part of a live view that handles its own markup.
+- a basic sense of the responsibilities of the modal component
+- `./lib/pento_web/live/modal_component.ex`
+
+
+```elixir
+defmodule PentoWeb.ModalComponent do
+  use PentoWeb, :live_component
+
+  @impl true
+  def render(assigns) do
+    ~L"""
+    <div id="<%= @id %>" class="phx-modal"
+      phx-capture-click="close"
+      phx-window-keydown="close"
+      phx-key="escape"
+      phx-target="#<%= @id %>"
+      phx-page-loading>
+
+      <div class="phx-modal-content">
+        <%= live_patch raw("&times;"),
+              to: @return_to, class: "phx-modal-close" %>
+        <%= live_component @socket, @component, @opts %>
+      </div>
+    </div>
+    """
+  end
+
+  @impl true
+  def handle_event("close", _, socket) do
+    {:noreply, push_patch(socket, to: socket.assigns.return_to)}
+  end
+end
+```
+
+- the **assigns** argument
+    - the keyword list that was given as a third argument to the **PentoWeb.LiveHelpers.live_modal/3** function
+
+
+- `./lib/pento_web/live/live_helpers.ex`
+
+
+```elixir
+defmodule PentoWeb.LiveHelpers do
+  import Phoenix.LiveView.Helpers
+
+  def live_modal(socket, component, opts) do
+    path = Keyword.fetch!(opts, :return_to)
+    modal_opts = [
+      id: :modal,
+      return_to: path,
+      component: component,
+      opts: opts
+    ]
+    live_component(socket, PentoWeb.ModalComponent, modal_opts)
+  end
+end
+```
+
+- **phx-** hook
+    - to pick up important events that are all ways to close the form.
+- **phx-capture-click**, **phx-window-keydown**
+    - will receive events when the user clicks on certain buttons or presses cetain keys.
+- **live_patch/2** call
+    - to build a "close" link with the **:return_to** path.
+- no **mount/1** function
+
+
+### Mount the Modal Component
+- a component has a lifecycle of its own
+- **update/2** function that LiveView uses to update a component
+- the default **mount/1** function just passes the socket through, unchanged
+- the default **update/2** function takes the assigns
+- this generated modal component doesn't need to keep any extra data in the socket
+    - aside from the assings we pass in via the call to **live_component/3**
