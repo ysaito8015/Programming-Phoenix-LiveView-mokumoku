@@ -494,7 +494,7 @@ end
 <img src='https://i.gyazo.com/2a95fc34a0d38db18c421c6fd2a45ff2.png' width='500'>
 
 
-##### flow
+##### Flow
 - the live view
     - calls on the context to create a changeset,
     - renders it in a form,
