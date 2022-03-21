@@ -21,3 +21,24 @@
 - The integration tests will interact with LiveView machinery to examine the impact of page loads and events.
     - e.g., simulating a button click and checking the impact on the re-rendered live view template.
     - Integration tests have the benefit of catching _integration problems_
+    - Integration tests can be britte.
+        - e.g., if the user interface changes the button into a link, then the test must be updated also.
+        - this type of test is costly in terms of long-term maintenance.
+- Sometimes it pays to
+    - isolate specific functions with complex behavior (like reducer functions) and
+    - write pure function tests for them.
+    - Such tests are calls _unit tests_
+        - they test one specific unit of functionality.
+- a testing strategy that addresses both integrated and isolated tests.
+
+
+### Isolation vs. Integration
+#### Unit tests
+- Pure unit tests call one function at a time, and then
+    - check expectations with one or more assertions.
+- Isolated unit test graph
+    - https://i.gyazo.com/d29cdf7016ed91871289fc30fab3e1b2.png
+- Unit tests encourrage _depth_.
+    - programmers can write test more of them and cover more scenarios.
+- Unit tests also allow _loose coupling_
+    - because they don't need relay on specific interaction.
