@@ -204,7 +204,28 @@ end
         - the named setup functions each create bits of data to add to the context.
             - e.g., the **create_socket** named setup function
                 - returning an empty LiveView socket to add to the context.
-                - By returning **%{socket: 
+                - By returning **%{socket: %Phoenix.LiveView.Socket{}}**
+                - the **create_socket** setup function will add this key/value pair to the shared text context data structure.
     - A setup function returns a map of data to merge into the context.
 - **setup** function with map
     - is a reducer that further transforms the context.
+    - ExUnit calls the **setup/1** function to create the demographic records for twe test users.
+    - the **setup** function
+        - is called with an argument of the context (**%{user: user}**) and
+        - return value of the function likewise gets added to the context map (**[user2: user2]**)
+            - this time the key/value pairs from the returned keyword list are added to the context map.
+    - the map passes it into each test in the **describe** block
+
+
+#### write unit test
+
+```elixir
+  test "no ratings exist", %{socket: socket} do
+    # to do what behavior we _expect_ to see
+    socket =
+      socket
+      |> SurveyResultsLive.assign_products_with_average_ratings == [%{"Test Game", 0}]
+  end
+```
+
+-  
